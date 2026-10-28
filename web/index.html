@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DocChat · Chat with your documents</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo">D</span>
+        <div>
+          <strong>DocChat</strong>
+          <small>RAG · LangGraph · Groq</small>
+        </div>
+      </div>
+
+      <label class="drop" id="drop">
+        <input type="file" id="file" multiple accept=".pdf,.txt,.md" hidden>
+        <strong>Upload documents</strong>
+        <span>PDF, TXT or Markdown. Drag &amp; drop or click.</span>
+      </label>
+
+      <p class="files-head">Your documents</p>
+      <ul id="files" class="files"><li class="empty">No documents yet</li></ul>
+
+      <button id="reset" class="ghost" type="button">New chat</button>
+    </aside>
+
+    <main class="chat">
+      <div id="messages" class="messages">
+        <div class="welcome">
+          <h1>Chat with your documents</h1>
+          <p>Upload a PDF, TXT or Markdown file, then ask anything about it. Every answer cites the pages it came from.</p>
+          <div class="examples">
+            <button type="button" data-q="Summarise this document in 5 bullet points.">Summarise in 5 bullet points</button>
+            <button type="button" data-q="What are the key dates and deadlines?">Key dates and deadlines</button>
+            <button type="button" data-q="What are the main rules I need to follow?">Main rules to follow</button>
+          </div>
+        </div>
+      </div>
+
+      <form id="form" class="composer">
+        <textarea id="input" rows="1" placeholder="Ask about your documents…" required></textarea>
+        <button id="send" type="submit">Send</button>
+      </form>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
