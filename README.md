@@ -14,8 +14,8 @@ period the first visit takes about a minute to wake up; try it with
 
 - **Retrieval-augmented answers** with numbered citations (file and page) and the source excerpts one click away
 - **Conversation memory**: follow-ups like *"and until when do I have to use them?"* are rewritten into standalone questions before searching
-- **Routing**: small talk is answered directly, document questions go through retrieval
-- **No hallucinated answers**: if nothing relevant clears the similarity threshold, DocChat says it couldn't find it
+- **Routing**: small talk is answered directly, fact questions search the documents, and "summarise this" or "tell me about Smit" reads across the whole document
+- **No hallucinated answers**: if no chunk clears the similarity threshold, DocChat says it couldn't find it, and only the excerpts an answer cites are shown
 - **Per-session isolation**: each browser session has its own documents and chat history
 - **FastAPI backend + lightweight web UI** (no build step), with drag-and-drop upload
 - **Tested**: graph wiring, ingestion and API are covered by pytest, with the LLM scripted so no API key is needed
@@ -27,7 +27,8 @@ flowchart LR
     U([User message]) --> RW[rewrite<br/>follow-up → standalone question]
     RW --> R{route}
     R -- small talk --> C[chat]
-    R -- needs documents --> RT[retrieve<br/>top-k chunks ≥ min score]
+    R -- fact question --> RT[retrieve<br/>top-k chunks, if the best ≥ min score]
+    R -- summary --> RT
     RT -- relevant chunks --> A[answer<br/>with citations]
     RT -- nothing relevant --> NF[not found]
     C --> E([reply])
@@ -36,7 +37,7 @@ flowchart LR
 ```
 
 - **Ingestion**: PDFs are read page by page (`pypdf`), split into ~500-character chunks with overlap, and embedded with `sentence-transformers/all-MiniLM-L6-v2` through `fastembed` (ONNX, no PyTorch, so the whole app runs in under 400 MB of RAM).
-- **Retrieval**: cosine similarity over an in-memory vector store; chunks below `MIN_SCORE` are dropped.
+- **Retrieval**: cosine similarity over an in-memory vector store. If even the best chunk scores below `MIN_SCORE` the question is treated as not covered; otherwise the top `TOP_K` chunks go to the model. Summary questions get `SUMMARY_CHUNKS` chunks spread across the documents instead.
 - **Generation**: Groq-hosted LLM (default `openai/gpt-oss-20b`) via `langchain-groq`, prompted to answer only from the excerpts and cite them.
 - **State**: a LangGraph `StateGraph` with an `InMemorySaver` checkpointer, one thread per session.
 
@@ -86,7 +87,7 @@ Interactive docs are at `/docs` while the server runs.
 ## Configuration
 
 Set in `.env` (see `.env.example`): `GROQ_MODEL`, `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`,
-`TOP_K`, `MIN_SCORE`, `MAX_UPLOAD_MB`, `MAX_CHUNKS_PER_SESSION`, `SESSION_TTL_MINUTES`, `MAX_SESSIONS`.
+`TOP_K`, `SUMMARY_CHUNKS`, `MIN_SCORE`, `MAX_UPLOAD_MB`, `MAX_CHUNKS_PER_SESSION`, `SESSION_TTL_MINUTES`, `MAX_SESSIONS`.
 
 ## Deploy on Render (free)
 

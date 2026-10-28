@@ -38,11 +38,13 @@ class SessionStore:
     def __init__(self) -> None:
         self._stores: dict[str, InMemoryVectorStore] = {}
         self._files: dict[str, dict[str, int]] = {}
+        self._chunks: dict[str, list[Document]] = {}  # in document order, for overviews
 
     def add(self, session_id: str, filename: str, chunks: list[Document]) -> None:
         if session_id not in self._stores:
             self._stores[session_id] = InMemoryVectorStore(get_embeddings())
         self._stores[session_id].add_documents(chunks)
+        self._chunks.setdefault(session_id, []).extend(chunks)
         files = self._files.setdefault(session_id, {})
         files[filename] = files.get(filename, 0) + len(chunks)
 
@@ -50,9 +52,17 @@ class SessionStore:
         store = self._stores.get(session_id)
         return store.similarity_search_with_score(query, k=k) if store else []
 
+    def overview(self, session_id: str, limit: int) -> list[Document]:
+        """Up to `limit` chunks spread evenly over the session's documents, in reading order."""
+        chunks = self._chunks.get(session_id, [])
+        if len(chunks) <= limit:
+            return list(chunks)
+        return [chunks[i * len(chunks) // limit] for i in range(limit)]
+
     def files(self, session_id: str) -> dict[str, int]:
         return dict(self._files.get(session_id, {}))
 
     def clear(self, session_id: str) -> None:
         self._stores.pop(session_id, None)
         self._files.pop(session_id, None)
+        self._chunks.pop(session_id, None)

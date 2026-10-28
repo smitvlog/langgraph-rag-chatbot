@@ -110,3 +110,34 @@ def test_least_recently_used_session_is_forgotten_over_the_cap():
 
     assert store.files("s1") == {"handbook.pdf": 1}
     assert store.files("s2") == {}
+
+
+def test_summary_reads_across_the_document_instead_of_searching(monkeypatch):
+    store = SessionStore()
+    pages = [Document(f"Section {n} of the handbook.", metadata={"source": "handbook.pdf", "page": n}) for n in range(1, 4)]
+    store.add("s1", "handbook.pdf", pages)
+    scripted(monkeypatch, "summary", "The handbook has three sections [1][2][3].")
+
+    result = DocChat(store).ask("s1", "Summarise this document")
+
+    assert result["route"] == "summary"
+    assert [s["page"] for s in result["sources"]] == [1, 2, 3]
+
+
+def test_overview_spreads_chunks_over_the_document():
+    store = SessionStore()
+    chunks = [Document(f"chunk {n}", metadata={"source": "a.txt", "page": n}) for n in range(10)]
+    store.add("s1", "a.txt", chunks)
+
+    assert [d.metadata["page"] for d in store.overview("s1", 5)] == [0, 2, 4, 6, 8]
+    assert len(store.overview("s1", 20)) == 10
+
+
+def test_answer_that_cites_nothing_shows_no_sources(monkeypatch):
+    store = SessionStore()
+    store.add("s1", "handbook.pdf", [LEAVE])
+    scripted(monkeypatch, "docs", "The excerpts don't say how much annual leave interns get.")
+
+    result = DocChat(store).ask("s1", "How much annual leave do interns get?")
+
+    assert result["sources"] == []

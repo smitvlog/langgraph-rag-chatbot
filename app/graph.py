@@ -4,6 +4,9 @@
                              └─ retrieve ─┬─ answer (with sources) → END
                                           └─ not_found ──────────→ END
 
+`route` picks chat, docs (search for the chunks closest to the question) or summary
+(chunks spread across the whole document, for "summarise this" or "tell me about Smit").
+
 `rewrite` turns follow-ups ("and for interns?") into standalone questions using the
 conversation so far; the checkpointer keeps that conversation per session.
 """
@@ -28,13 +31,13 @@ REWRITE_PROMPT = (
     "for any missing context. Reply with the question only."
 )
 
-ROUTE_PROMPT = (
-    "The user has uploaded documents and is chatting with an assistant about them. "
-    "Reply 'docs' if answering the message needs facts, numbers, names, dates or rules, "
-    "even if they might not be in the documents. "
-    "Reply 'chat' only for greetings, thanks, or questions about the assistant itself. "
-    "If unsure, reply 'docs'. Reply with one word."
-)
+ROUTE_PROMPT = """The user has uploaded these documents and is chatting with an assistant about them: {files}
+Reply with one word:
+- 'summary' if they want an overview of a whole document or of the person, company or topic it is about.
+- 'docs' if they ask for specific facts, numbers, names, dates or rules, even if those might not be in the documents.
+- 'chat' only for greetings, thanks, or questions about the assistant itself.
+A message addressed to someone the documents are about ("tell me about yourself, Smit" with Smit's CV
+uploaded) is about the documents, not the assistant. If unsure, reply 'docs'."""
 
 ANSWER_PROMPT = """You answer questions using only the document excerpts below.
 - Cite the excerpts you used with their numbers in square brackets, like [1] or [2][3].
@@ -46,8 +49,9 @@ Excerpts:
 
 CHAT_PROMPT = (
     "You are DocChat, an assistant that answers questions about the user's uploaded "
-    "documents. Be brief and friendly. If no documents are uploaded yet, invite the user "
-    "to upload a PDF, TXT or Markdown file."
+    "documents. Be brief and friendly. You can't see what the documents say here, so never "
+    "describe, summarise or guess their contents; suggest asking a question about them instead. "
+    "If no documents are uploaded yet, invite the user to upload a PDF, TXT or Markdown file."
 )
 
 NOT_FOUND = (
@@ -88,25 +92,35 @@ def rewrite(state: ChatState) -> dict:
 
 
 def route(state: ChatState, runtime: Runtime[Context]) -> dict:
-    if not runtime.context.store.files(runtime.context.session_id):
+    files = runtime.context.store.files(runtime.context.session_id)
+    if not files:
         return {"route": "chat"}
-    reply = get_llm().invoke([SystemMessage(ROUTE_PROMPT), HumanMessage(state["question"])])
-    return {"route": "chat" if reply.content.strip().lower().startswith("chat") else "docs"}
+    prompt = ROUTE_PROMPT.format(files=", ".join(files))
+    reply = get_llm().invoke([SystemMessage(prompt), HumanMessage(state["question"])]).content.strip().lower()
+    return {"route": next((r for r in ("summary", "chat") if reply.startswith(r)), "docs")}
 
 
 def retrieve(state: ChatState, runtime: Runtime[Context]) -> dict:
-    hits = runtime.context.store.search(runtime.context.session_id, state["question"], settings.top_k)
+    store, session_id = runtime.context.store, runtime.context.session_id
+    if state["route"] == "summary":
+        # "Summarise this" resembles no chunk in particular, so similarity search would miss.
+        hits = [(doc, None) for doc in store.overview(session_id, settings.summary_chunks)]
+    else:
+        hits = [(doc, round(score, 3)) for doc, score in store.search(session_id, state["question"], settings.top_k)]
+        # MIN_SCORE decides whether the documents cover the question at all. Weaker neighbours
+        # of a good match still go to the model: in a CV, "Where did Smit study?" matches the
+        # header with the name best, while the line naming the college scores well below it.
+        if not hits or hits[0][1] < settings.min_score:
+            hits = []
     sources = [
         {
             "n": number,
             "source": doc.metadata["source"],
             "page": doc.metadata["page"],
             "text": doc.page_content,
-            "score": round(score, 3),
+            "score": score,
         }
-        for number, (doc, score) in enumerate(
-            [(doc, score) for doc, score in hits if score >= settings.min_score], start=1
-        )
+        for number, (doc, score) in enumerate(hits, start=1)
     ]
     return {"sources": sources}
 
@@ -125,8 +139,8 @@ def answer(state: ChatState) -> dict:
     )
     text = CITATION.sub(r"[\1]", reply.content.strip())
     cited = {int(n) for n in CITATION.findall(text)}
-    # Show only the excerpts the answer actually cites (all of them if it cited none).
-    sources = [s for s in state["sources"] if s["n"] in cited] or state["sources"]
+    # Show only the excerpts the answer cites; an answer citing none is a "not in the excerpts" reply.
+    sources = [s for s in state["sources"] if s["n"] in cited]
     return {"messages": [AIMessage(text)], "sources": sources}
 
 
@@ -154,7 +168,9 @@ def build_graph(checkpointer=None):
 
     builder.add_edge(START, "rewrite")
     builder.add_edge("rewrite", "route")
-    builder.add_conditional_edges("route", lambda s: s["route"], {"docs": "retrieve", "chat": "chat"})
+    builder.add_conditional_edges(
+        "route", lambda s: s["route"], {"docs": "retrieve", "summary": "retrieve", "chat": "chat"}
+    )
     builder.add_conditional_edges(
         "retrieve", lambda s: "answer" if s["sources"] else "not_found", ["answer", "not_found"]
     )
