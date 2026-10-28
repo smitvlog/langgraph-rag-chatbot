@@ -4,7 +4,7 @@ Upload PDFs, text or Markdown files and ask questions about them. Every answer c
 document and page it came from, follow-up questions keep their context, and questions the
 documents can't answer are refused instead of guessed.
 
-![DocChat answering questions about an employee handbook, with page citations](docs/screenshot.jpg)
+![DocChat answering questions about an employee handbook: an answer with page citations, a follow-up question, and a question the document can't answer](docs/demo.gif)
 
 ## Features
 
