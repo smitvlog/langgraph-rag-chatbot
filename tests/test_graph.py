@@ -82,3 +82,31 @@ def test_sessions_do_not_share_documents(monkeypatch):
     result = DocChat(store).ask("s2", "How many days of annual leave do I get?")
 
     assert result["route"] == "chat"
+
+
+def test_idle_sessions_are_forgotten(monkeypatch):
+    store = SessionStore()
+    chat = DocChat(store, ttl_seconds=60)
+    now = [0.0]
+    monkeypatch.setattr(graph_module, "monotonic", lambda: now[0])
+    chat.touch("s1")
+    store.add("s1", "handbook.pdf", [LEAVE])
+
+    now[0] = 61
+    chat.touch("s2")
+
+    assert store.files("s1") == {}
+
+
+def test_least_recently_used_session_is_forgotten_over_the_cap():
+    store = SessionStore()
+    chat = DocChat(store, max_sessions=2)
+    for session in ("s1", "s2"):
+        chat.touch(session)
+        store.add(session, "handbook.pdf", [LEAVE])
+
+    chat.touch("s1")
+    chat.touch("s3")
+
+    assert store.files("s1") == {"handbook.pdf": 1}
+    assert store.files("s2") == {}

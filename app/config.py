@@ -18,6 +18,9 @@ class Settings:
     # Chunks below this cosine similarity are treated as unrelated to the question.
     min_score: float = float(os.getenv("MIN_SCORE", "0.3"))
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "15"))
+    # Sessions live in memory, so idle ones are dropped and their number is capped.
+    session_ttl_minutes: int = int(os.getenv("SESSION_TTL_MINUTES", "60"))
+    max_sessions: int = int(os.getenv("MAX_SESSIONS", "100"))
 
 
 settings = Settings()

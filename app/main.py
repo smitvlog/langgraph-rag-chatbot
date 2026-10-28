@@ -51,6 +51,7 @@ def list_files(session_id: str) -> dict:
 @app.post("/api/sessions/{session_id}/files")
 def upload_files(session_id: str, files: list[UploadFile] = File(...)) -> dict:
     check_session(session_id)
+    docchat.touch(session_id)
     max_bytes = settings.max_upload_mb * 1024 * 1024
     for upload in files:
         data = upload.file.read(max_bytes + 1)
