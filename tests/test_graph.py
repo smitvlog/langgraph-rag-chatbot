@@ -133,11 +133,38 @@ def test_overview_spreads_chunks_over_the_document():
     assert len(store.overview("s1", 20)) == 10
 
 
-def test_answer_that_cites_nothing_shows_no_sources(monkeypatch):
+def test_not_found_reply_shows_its_reason_and_no_sources(monkeypatch):
     store = SessionStore()
     store.add("s1", "handbook.pdf", [LEAVE])
-    scripted(monkeypatch, "docs", "The excerpts don't say how much annual leave interns get.")
+    scripted(monkeypatch, "docs", "NOT_FOUND: The handbook doesn't cover leave for interns.")
 
     result = DocChat(store).ask("s1", "How much annual leave do interns get?")
 
+    assert result["answer"] == "The handbook doesn't cover leave for interns."
     assert result["sources"] == []
+
+
+def test_answer_without_citations_still_shows_the_excerpts(monkeypatch):
+    store = SessionStore()
+    store.add("s1", "handbook.pdf", [LEAVE])
+    scripted(monkeypatch, "docs", "You get 24 days of paid leave.")
+
+    result = DocChat(store).ask("s1", "How many days of annual leave do I get?")
+
+    assert [s["page"] for s in result["sources"]] == [2]
+
+
+def test_message_naming_a_file_word_is_never_small_talk(monkeypatch):
+    store = SessionStore()
+    cv = Document("Priya Nair is a backend developer who works with Django.", metadata={"source": "priya-nair-cv.txt", "page": 1})
+    store.add("s1", "priya-nair-cv.txt", [cv])
+    scripted(monkeypatch, "chat", "Priya is a backend developer [1].")
+
+    result = DocChat(store).ask("s1", "Tell me about yourself, Priya")
+
+    assert result["route"] == "docs"
+    assert result["sources"][0]["source"] == "priya-nair-cv.txt"
+
+
+def test_file_name_words():
+    assert graph_module.file_name_words(["SmitVaghasiyaCV.pdf", "priya-nair-cv.txt"]) == {"smit", "vaghasiya", "priya", "nair"}

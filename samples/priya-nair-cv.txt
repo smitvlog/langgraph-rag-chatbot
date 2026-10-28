@@ -1,0 +1,31 @@
+PRIYA NAIR
+Backend Developer | Python, Django, PostgreSQL
+Kochi, India (fictional sample CV for DocChat)
+
+SUMMARY
+Backend developer with five years of experience building REST APIs and data pipelines for
+logistics and healthcare products. Enjoys turning slow, manual workflows into reliable services.
+
+EXPERIENCE
+Cloudnest Labs, Senior Backend Developer (2023 - present)
+- Leads a team of three building the shipment-tracking API used by 40 courier partners.
+- Moved the reporting jobs from cron scripts to Celery workers, cutting nightly runtime from
+  4 hours to 35 minutes.
+- Introduced contract tests between the API and the mobile app.
+
+Brightlane Software, Backend Developer (2020 - 2023)
+- Built the appointment and billing APIs for a chain of 25 clinics with Django REST Framework.
+- Designed the PostgreSQL schema for patient records, with row-level permissions per clinic.
+- Containerised the services with Docker and deployed them on AWS ECS.
+
+EDUCATION
+Bachelor of Science in Computer Science, Pune Institute of Technology (2016 - 2020)
+
+SKILLS
+Languages: Python, SQL, Go (basic)
+Frameworks: Django, Django REST Framework, FastAPI, Celery
+Data: PostgreSQL, Redis, Elasticsearch
+Cloud and tools: Docker, AWS (ECS, RDS, S3), GitHub Actions, Sentry
+
+LANGUAGES
+English (fluent), Malayalam (native), Hindi (conversational)

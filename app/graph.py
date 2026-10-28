@@ -42,9 +42,10 @@ uploaded) is about the documents, not the assistant. If unsure, reply 'docs'."""
 ANSWER_PROMPT = """You answer questions using only facts stated in the document excerpts below.
 - Never add facts from your own knowledge, even when you know the answer. If an excerpt only
   mentions or asks about a topic (a list of interview questions, say) without explaining it,
-  say the documents don't explain it.
+  the documents don't answer the question.
 - Cite the excerpts you used with their numbers in square brackets, like [1] or [2][3].
-- If the excerpts don't contain the answer, say so plainly instead of guessing.
+- If the excerpts don't answer the question, reply with NOT_FOUND: and one short sentence on
+  what is missing, for example "NOT_FOUND: The documents list this question but don't answer it."
 - Keep answers short and clear; use bullet points for lists.
 
 Excerpts:
@@ -101,7 +102,24 @@ def route(state: ChatState, runtime: Runtime[Context]) -> dict:
         return {"route": "chat"}
     prompt = ROUTE_PROMPT.format(files=", ".join(files))
     reply = get_llm().invoke([SystemMessage(prompt), HumanMessage(state["question"])]).content.strip().lower()
-    return {"route": next((r for r in ("summary", "chat") if reply.startswith(r)), "docs")}
+    decision = next((r for r in ("summary", "chat") if reply.startswith(r)), "docs")
+    # The model sometimes takes "Tell me about yourself, Priya" as small talk even with
+    # priya-nair-cv.txt uploaded; naming something from a file name makes it a document question.
+    if decision == "chat" and file_name_words(files) & set(re.findall(r"[a-z]+", state["question"].lower())):
+        decision = "docs"
+    return {"route": decision}
+
+
+def file_name_words(files) -> set[str]:
+    """Distinctive words in file names: "SmitVaghasiyaCV.pdf" -> {"smit", "vaghasiya"}."""
+    words = set()
+    for name in files:
+        stem = name.rsplit(".", 1)[0]
+        words.update(w.lower() for w in re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])", stem))
+    return {w for w in words if len(w) > 2} - GENERIC_FILE_WORDS
+
+
+GENERIC_FILE_WORDS = {"cv", "resume", "document", "file", "final", "copy", "new", "draft", "the", "and", "for", "with"}
 
 
 def retrieve(state: ChatState, runtime: Runtime[Context]) -> dict:
@@ -142,9 +160,12 @@ def answer(state: ChatState) -> dict:
         ]
     )
     text = CITATION.sub(r"[\1]", reply.content.strip())
+    if text.upper().startswith("NOT_FOUND"):
+        reason = text.split(":", 1)[1].strip() if ":" in text else ""
+        return {"messages": [AIMessage(reason or NOT_FOUND)], "sources": []}
     cited = {int(n) for n in CITATION.findall(text)}
-    # Show only the excerpts the answer cites; an answer citing none is a "not in the excerpts" reply.
-    sources = [s for s in state["sources"] if s["n"] in cited]
+    # Show the excerpts the answer cites, or all of them when it forgot to cite.
+    sources = [s for s in state["sources"] if s["n"] in cited] or state["sources"]
     return {"messages": [AIMessage(text)], "sources": sources}
 
 
@@ -180,7 +201,7 @@ def build_graph(checkpointer=None):
     )
     for node in ("answer", "not_found", "chat"):
         builder.add_edge(node, END)
-    return builder.compile(checkpointer=checkpointer or InMemorySaver())
+    return builder.compile(checkpointer=checkpointer or InMemorySaver(), name="DocChat")
 
 
 class DocChat:

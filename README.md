@@ -49,6 +49,8 @@ flowchart LR
 | `app/main.py` | FastAPI endpoints and static file serving |
 | `web/` | Chat UI (HTML, CSS, vanilla JS) |
 | `tests/` | pytest suite |
+| `evals/` | LangSmith evaluation on four kinds of document |
+| `samples/` | Fictional documents for trying and evaluating DocChat |
 
 ## Run it locally
 
@@ -94,6 +96,26 @@ Set in `.env` (see `.env.example`): `GROQ_MODEL`, `EMBEDDING_MODEL`, `CHUNK_SIZE
 `render.yaml` describes a free Render web service. In Render, choose **New → Blueprint**, pick
 this repository and paste your `GROQ_API_KEY` when asked. The free plan sleeps after about
 15 minutes without visitors, so the first visit after that takes about a minute.
+
+## Observability and evaluation (LangSmith)
+
+Set `LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY` and `LANGSMITH_PROJECT`, and every question is
+traced in LangSmith: the rewritten question, the route, the retrieved chunks with their scores,
+the answer, latency and token use. When tracing is on, the UI tells visitors that questions are logged.
+
+`evals/run_eval.py` scores DocChat on 16 questions over four kinds of document: a PDF handbook,
+a CV, a list of interview questions (questions only, no answers) and this README. DocChat should
+answer the questions a document covers, with the right facts, and refuse the rest, including
+topics a document only mentions.
+
+```bash
+python -m evals.run_eval
+```
+
+Results land in LangSmith under **Datasets & Experiments → docchat-eval**, one experiment per run.
+
+Latest run (29 Oct 2026): **16/16**. The first runs caught a CV question routed to small talk and a
+correct answer shown without sources; both are fixed and covered by tests.
 
 ## Tests
 

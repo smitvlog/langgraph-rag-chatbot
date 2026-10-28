@@ -71,3 +71,7 @@ def test_sample_handbook_can_be_loaded():
     res = client.post(f"/api/sessions/{session}/sample")
     assert res.status_code == 200
     assert res.json() == {"files": {"northwind-employee-handbook.pdf": 7}}
+
+
+def test_info_reports_whether_tracing_is_on():
+    assert client.get("/api/info").json() == {"tracing": main.settings.tracing}

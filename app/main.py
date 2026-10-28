@@ -37,6 +37,11 @@ def check_session(session_id: str) -> str:
     return session_id
 
 
+@app.get("/api/info")
+def info() -> dict:
+    return {"tracing": settings.tracing}
+
+
 @app.post("/api/sessions")
 def create_session() -> dict:
     return {"session_id": uuid.uuid4().hex}

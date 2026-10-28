@@ -11,6 +11,13 @@ services:
     envVars:
       - key: GROQ_API_KEY
         sync: false
+      # LangSmith tracing of live traffic, kept apart from local runs.
+      - key: LANGSMITH_API_KEY
+        sync: false
+      - key: LANGSMITH_TRACING
+        value: "true"
+      - key: LANGSMITH_PROJECT
+        value: docchat-live
       - key: PYTHON_VERSION
         value: "3.14"
       # Smaller limits so a few visitors at once stay within 512 MB.

@@ -95,6 +95,8 @@ button { font: inherit; cursor: pointer; }
   border: 1px solid var(--line); background: transparent; color: var(--text);
 }
 .ghost:hover { border-color: var(--accent); color: var(--accent); }
+.notice { margin: auto 0 10px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.notice:not([hidden]) + .ghost { margin-top: 0; }
 
 .chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 

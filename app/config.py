@@ -31,6 +31,8 @@ class Settings:
     # Sessions live in memory, so idle ones are dropped and their number is capped.
     session_ttl_minutes: int = int(os.getenv("SESSION_TTL_MINUTES", "60"))
     max_sessions: int = int(os.getenv("MAX_SESSIONS", "100"))
+    # LangChain sends traces to LangSmith on its own when this is set; the UI says so.
+    tracing: bool = os.getenv("LANGSMITH_TRACING", "").lower() == "true"
 
 
 settings = Settings()

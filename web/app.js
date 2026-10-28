@@ -19,6 +19,7 @@ async function startSession() {
     sessionStorage.setItem("docchat-session", sessionId);
   }
   renderFiles((await api(`/api/sessions/${sessionId}/files`)).files);
+  $("#notice").hidden = !(await api("/api/info")).tracing;
 }
 
 function renderFiles(files) {
