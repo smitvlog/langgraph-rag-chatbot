@@ -30,9 +30,10 @@ REWRITE_PROMPT = (
 
 ROUTE_PROMPT = (
     "The user has uploaded documents and is chatting with an assistant about them. "
-    "Reply 'docs' if answering the message needs facts that could be in those documents. "
+    "Reply 'docs' if answering the message needs facts, numbers, names, dates or rules, "
+    "even if they might not be in the documents. "
     "Reply 'chat' only for greetings, thanks, or questions about the assistant itself. "
-    "Reply with one word."
+    "If unsure, reply 'docs'. Reply with one word."
 )
 
 ANSWER_PROMPT = """You answer questions using only the document excerpts below.
@@ -133,9 +134,12 @@ def not_found(state: ChatState) -> dict:
     return {"messages": [AIMessage(NOT_FOUND)]}
 
 
-def chat(state: ChatState) -> dict:
+def chat(state: ChatState, runtime: Runtime[Context]) -> dict:
+    # Without this the model can claim nothing is uploaded when a question was routed here.
+    files = runtime.context.store.files(runtime.context.session_id)
+    uploaded = f"Uploaded documents: {', '.join(files)}." if files else "No documents are uploaded yet."
     history = state["messages"][-HISTORY_TURNS:]
-    reply = get_llm().invoke([SystemMessage(CHAT_PROMPT), *history])
+    reply = get_llm().invoke([SystemMessage(f"{CHAT_PROMPT}\n{uploaded}"), *history])
     return {"messages": [AIMessage(reply.content.strip())], "sources": []}
 
 
