@@ -72,15 +72,35 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-// Small, safe Markdown subset: paragraphs, bullet lists, **bold** and [n] citations.
+// Small, safe Markdown subset: paragraphs, bullet lists, **bold**, `code`, ``` blocks and [n] citations.
 function renderAnswer(text) {
   const inline = (line) =>
     escapeHtml(line)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\[(\d+)\]/g, '<sup class="cite">$1</sup>');
   const html = [];
   let list = null;
+  let code = null;
+  let codeIndent = 0;
   for (const raw of text.split("\n")) {
+    const indent = raw.length - raw.trimStart().length;
+    if (raw.trim().startsWith("```")) {
+      if (code) {
+        html.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+        code = null;
+      } else {
+        if (list) html.push(`<ul>${list.join("")}</ul>`);
+        list = null;
+        code = [];
+        codeIndent = indent; // fences inside list items are indented; drop that from the code
+      }
+      continue;
+    }
+    if (code) {
+      code.push(raw.slice(Math.min(indent, codeIndent)));
+      continue;
+    }
     const line = raw.trim();
     const item = line.match(/^(?:[-*•]|\d+\.)\s+(.*)$/);
     if (item) {
@@ -95,6 +115,7 @@ function renderAnswer(text) {
     if (line) html.push(`<p>${inline(line)}</p>`);
   }
   if (list) html.push(`<ul>${list.join("")}</ul>`);
+  if (code) html.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
   return html.join("");
 }
 

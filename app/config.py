@@ -22,8 +22,10 @@ class Settings:
     top_k: int = int(os.getenv("TOP_K", "4"))
     # Chunks given to the model for "summarise this" style questions.
     summary_chunks: int = int(os.getenv("SUMMARY_CHUNKS", "12"))
-    # If even the best chunk scores below this cosine similarity, the question is unanswered.
-    min_score: float = float(os.getenv("MIN_SCORE", "0.3"))
+    # If even the best chunk scores below this cosine similarity, the question is refused without
+    # asking the model. It only catches clearly unrelated questions: relevant ones score as low as
+    # 0.26 on technical text, so borderline cases are left to the answer prompt.
+    min_score: float = float(os.getenv("MIN_SCORE", "0.2"))
     max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "15"))
     max_chunks_per_session: int = int(os.getenv("MAX_CHUNKS_PER_SESSION", "5000"))
     # Sessions live in memory, so idle ones are dropped and their number is capped.

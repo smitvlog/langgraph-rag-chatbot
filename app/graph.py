@@ -39,7 +39,10 @@ Reply with one word:
 A message addressed to someone the documents are about ("tell me about yourself, Smit" with Smit's CV
 uploaded) is about the documents, not the assistant. If unsure, reply 'docs'."""
 
-ANSWER_PROMPT = """You answer questions using only the document excerpts below.
+ANSWER_PROMPT = """You answer questions using only facts stated in the document excerpts below.
+- Never add facts from your own knowledge, even when you know the answer. If an excerpt only
+  mentions or asks about a topic (a list of interview questions, say) without explaining it,
+  say the documents don't explain it.
 - Cite the excerpts you used with their numbers in square brackets, like [1] or [2][3].
 - If the excerpts don't contain the answer, say so plainly instead of guessing.
 - Keep answers short and clear; use bullet points for lists.
@@ -79,7 +82,8 @@ class ChatState(MessagesState):
 
 @lru_cache(maxsize=1)
 def get_llm() -> ChatGroq:
-    return ChatGroq(model=settings.groq_model, temperature=0)
+    # Extra retries ride out the free tier's tokens-per-minute limit (the SDK honours retry-after).
+    return ChatGroq(model=settings.groq_model, temperature=0, max_retries=5)
 
 
 def rewrite(state: ChatState) -> dict:
