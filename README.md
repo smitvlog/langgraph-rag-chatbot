@@ -31,7 +31,7 @@ flowchart LR
     NF --> E
 ```
 
-- **Ingestion**: PDFs are read page by page (`pypdf`), split into ~500-character chunks with overlap, and embedded with `sentence-transformers/all-mpnet-base-v2`.
+- **Ingestion**: PDFs are read page by page (`pypdf`), split into ~500-character chunks with overlap, and embedded with `sentence-transformers/all-MiniLM-L6-v2` through `fastembed` (ONNX, no PyTorch, so the whole app runs in under 400 MB of RAM).
 - **Retrieval**: cosine similarity over an in-memory vector store; chunks below `MIN_SCORE` are dropped.
 - **Generation**: Groq-hosted LLM (default `openai/gpt-oss-20b`) via `langchain-groq`, prompted to answer only from the excerpts and cite them.
 - **State**: a LangGraph `StateGraph` with an `InMemorySaver` checkpointer, one thread per session.
@@ -65,7 +65,7 @@ handbook) and try:
 - *And until when do I have to use them?*
 - *What is the daily meal limit when travelling?*
 
-The first start downloads the embedding model (about 420 MB) and caches it.
+The first start downloads the embedding model (about 90 MB) into `.cache/fastembed`.
 
 ## API
 
@@ -82,7 +82,13 @@ Interactive docs are at `/docs` while the server runs.
 ## Configuration
 
 Set in `.env` (see `.env.example`): `GROQ_MODEL`, `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`,
-`TOP_K`, `MIN_SCORE`, `MAX_UPLOAD_MB`.
+`TOP_K`, `MIN_SCORE`, `MAX_UPLOAD_MB`, `MAX_CHUNKS_PER_SESSION`, `SESSION_TTL_MINUTES`, `MAX_SESSIONS`.
+
+## Deploy on Render (free)
+
+`render.yaml` describes a free Render web service. In Render, choose **New → Blueprint**, pick
+this repository and paste your `GROQ_API_KEY` when asked. The free plan sleeps after about
+15 minutes without visitors, so the first visit after that takes about a minute.
 
 ## Tests
 

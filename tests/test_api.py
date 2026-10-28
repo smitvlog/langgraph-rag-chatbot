@@ -1,5 +1,8 @@
+from dataclasses import replace
+
 from fastapi.testclient import TestClient
 
+import app.main as main
 from app.main import app, docchat
 
 client = TestClient(app)
@@ -52,3 +55,12 @@ def test_web_ui_is_served():
     res = client.get("/")
     assert res.status_code == 200
     assert "DocChat" in res.text
+
+
+def test_upload_over_the_chunk_limit_is_rejected(monkeypatch):
+    monkeypatch.setattr(main, "settings", replace(main.settings, max_chunks_per_session=1))
+    session = new_session()
+    text = b"Remote work is allowed three days a week. " * 40
+    res = client.post(f"/api/sessions/{session}/files", files={"files": ("long.txt", text, "text/plain")})
+    assert res.status_code == 413
+    assert client.get(f"/api/sessions/{session}/files").json() == {"files": {}}

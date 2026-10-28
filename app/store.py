@@ -2,20 +2,34 @@
 
 from functools import lru_cache
 
+from fastembed import TextEmbedding
 from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_huggingface import HuggingFaceEmbeddings
 
 from .config import settings
 
 
+class FastEmbedEmbeddings(Embeddings):
+    """ONNX embeddings via fastembed. No PyTorch, so the app fits on a 512 MB server."""
+
+    # fastembed's default batch of 256 chunks needs about 1 GB of RAM for a long document.
+    BATCH_SIZE = 16
+
+    def __init__(self, model_name: str, cache_dir: str) -> None:
+        self.model = TextEmbedding(model_name, cache_dir=cache_dir)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [vector.tolist() for vector in self.model.passage_embed(texts, batch_size=self.BATCH_SIZE)]
+
+    def embed_query(self, text: str) -> list[float]:
+        return next(iter(self.model.query_embed(text))).tolist()
+
+
 @lru_cache(maxsize=1)
-def get_embeddings() -> HuggingFaceEmbeddings:
-    # Loaded once per process; Hugging Face downloads and caches the model on first use.
-    return HuggingFaceEmbeddings(
-        model_name=settings.embedding_model,
-        encode_kwargs={"normalize_embeddings": True},
-    )
+def get_embeddings() -> FastEmbedEmbeddings:
+    # Loaded once per process; the model is downloaded into the cache dir on first use.
+    return FastEmbedEmbeddings(settings.embedding_model, settings.embedding_cache_dir)
 
 
 class SessionStore:

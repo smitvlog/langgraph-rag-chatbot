@@ -63,7 +63,10 @@ def upload_files(session_id: str, files: list[UploadFile] = File(...)) -> dict:
             raise HTTPException(415, str(err)) from err
         if not pages:
             raise HTTPException(422, f"{upload.filename} has no readable text (is it a scanned PDF?)")
-        docchat.store.add(session_id, upload.filename, split(pages))
+        chunks = split(pages)
+        if sum(docchat.store.files(session_id).values()) + len(chunks) > settings.max_chunks_per_session:
+            raise HTTPException(413, f"{upload.filename} is too long for this chat. Try a shorter document.")
+        docchat.store.add(session_id, upload.filename, chunks)
     return {"files": docchat.store.files(session_id)}
 
 

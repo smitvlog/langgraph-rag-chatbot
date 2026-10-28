@@ -1,0 +1,22 @@
+# Render Blueprint: DocChat as a free web service (512 MB RAM, sleeps when idle).
+services:
+  - type: web
+    name: docchat
+    runtime: python
+    plan: free
+    # Downloading the embedding model at build time keeps the first upload fast.
+    buildCommand: pip install -r requirements.txt && python -c "from app.store import get_embeddings; get_embeddings()"
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.14"
+      # Smaller limits so a few visitors at once stay within 512 MB.
+      - key: MAX_UPLOAD_MB
+        value: "5"
+      - key: MAX_CHUNKS_PER_SESSION
+        value: "1000"
+      - key: MAX_SESSIONS
+        value: "10"
