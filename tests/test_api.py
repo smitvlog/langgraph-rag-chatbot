@@ -64,3 +64,10 @@ def test_upload_over_the_chunk_limit_is_rejected(monkeypatch):
     res = client.post(f"/api/sessions/{session}/files", files={"files": ("long.txt", text, "text/plain")})
     assert res.status_code == 413
     assert client.get(f"/api/sessions/{session}/files").json() == {"files": {}}
+
+
+def test_sample_handbook_can_be_loaded():
+    session = new_session()
+    res = client.post(f"/api/sessions/{session}/sample")
+    assert res.status_code == 200
+    assert res.json() == {"files": {"northwind-employee-handbook.pdf": 7}}

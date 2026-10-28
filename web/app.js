@@ -24,6 +24,7 @@ async function startSession() {
 function renderFiles(files) {
   const list = $("#files");
   const names = Object.keys(files);
+  $("#sample")?.toggleAttribute("hidden", names.length > 0);
   list.innerHTML = names.length
     ? names.map((name) => `<li><span>${escapeHtml(name)}</span><small>${files[name]} chunks</small></li>`).join("")
     : '<li class="empty">No documents yet</li>';
@@ -43,6 +44,27 @@ async function upload(fileList) {
   } finally {
     drop.classList.remove("busy");
     drop.querySelector("strong").textContent = "Upload documents";
+  }
+}
+
+// Questions that show off the sample: two answers with citations and one refusal.
+const SAMPLE_QUESTIONS = [
+  "How many days of annual leave do I get?",
+  "What is the daily meal limit when travelling?",
+  "What is the CEO's salary?",
+];
+
+async function loadSample() {
+  const button = $("#sample");
+  button.disabled = true;
+  button.textContent = "Loading the sample handbook…";
+  try {
+    renderFiles((await api(`/api/sessions/${sessionId}/sample`, { method: "POST" })).files);
+    $(".examples").innerHTML = SAMPLE_QUESTIONS.map(
+      (q) => `<button type="button" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`
+    ).join("");
+  } catch (err) {
+    addMessage("error", `<p>${escapeHtml(err.message)}</p>`);
   }
 }
 
@@ -143,6 +165,8 @@ messages.addEventListener("click", (event) => {
   const example = event.target.closest("[data-q]");
   if (example) ask(example.dataset.q);
 });
+
+$("#sample").addEventListener("click", loadSample);
 
 $("#file").addEventListener("change", (event) => {
   upload(event.target.files);

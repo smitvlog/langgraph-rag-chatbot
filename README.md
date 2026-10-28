@@ -4,6 +4,10 @@ Upload PDFs, text or Markdown files and ask questions about them. Every answer c
 document and page it came from, follow-up questions keep their context, and questions the
 documents can't answer are refused instead of guessed.
 
+**Live demo: [docchat-aem4.onrender.com](https://docchat-aem4.onrender.com)** (free server: after a quiet
+period the first visit takes about a minute to wake up; try it with
+[the sample handbook](samples/northwind-employee-handbook.pdf)).
+
 ![DocChat answering questions about an employee handbook: an answer with page citations, a follow-up question, and a question the document can't answer](docs/demo.gif)
 
 ## Features

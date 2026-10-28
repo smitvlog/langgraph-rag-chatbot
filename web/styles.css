@@ -115,6 +115,11 @@ button { font: inherit; cursor: pointer; }
   border: 1px solid var(--line); background: var(--panel); color: var(--text);
 }
 .examples button:hover { border-color: var(--accent); color: var(--accent); }
+.sample {
+  margin-top: 18px; padding: 10px 18px; border: 0; border-radius: 12px;
+  background: var(--accent); color: #fff; font-weight: 600;
+}
+.sample:disabled { opacity: .6; cursor: wait; }
 
 .msg { max-width: 85%; padding: 12px 16px; border-radius: 16px; overflow-wrap: anywhere; }
 .msg p { margin: 0 0 8px; }

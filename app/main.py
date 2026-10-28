@@ -20,6 +20,7 @@ from .store import SessionStore
 log = logging.getLogger("docchat")
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+SAMPLE = Path(__file__).resolve().parent.parent / "samples" / "northwind-employee-handbook.pdf"
 SESSION_ID = re.compile(r"^[0-9a-f]{32}$")
 
 app = FastAPI(title="DocChat", description="Chat with your documents (RAG + LangGraph)")
@@ -57,17 +58,30 @@ def upload_files(session_id: str, files: list[UploadFile] = File(...)) -> dict:
         data = upload.file.read(max_bytes + 1)
         if len(data) > max_bytes:
             raise HTTPException(413, f"{upload.filename} is larger than {settings.max_upload_mb} MB")
-        try:
-            pages = load_file(upload.filename, data)
-        except UnsupportedFile as err:
-            raise HTTPException(415, str(err)) from err
-        if not pages:
-            raise HTTPException(422, f"{upload.filename} has no readable text (is it a scanned PDF?)")
-        chunks = split(pages)
-        if sum(docchat.store.files(session_id).values()) + len(chunks) > settings.max_chunks_per_session:
-            raise HTTPException(413, f"{upload.filename} is too long for this chat. Try a shorter document.")
-        docchat.store.add(session_id, upload.filename, chunks)
+        add_document(session_id, upload.filename, data)
     return {"files": docchat.store.files(session_id)}
+
+
+@app.post("/api/sessions/{session_id}/sample")
+def load_sample(session_id: str) -> dict:
+    """Loads the bundled sample handbook, so visitors can try DocChat without a file of their own."""
+    check_session(session_id)
+    docchat.touch(session_id)
+    add_document(session_id, SAMPLE.name, SAMPLE.read_bytes())
+    return {"files": docchat.store.files(session_id)}
+
+
+def add_document(session_id: str, filename: str, data: bytes) -> None:
+    try:
+        pages = load_file(filename, data)
+    except UnsupportedFile as err:
+        raise HTTPException(415, str(err)) from err
+    if not pages:
+        raise HTTPException(422, f"{filename} has no readable text (is it a scanned PDF?)")
+    chunks = split(pages)
+    if sum(docchat.store.files(session_id).values()) + len(chunks) > settings.max_chunks_per_session:
+        raise HTTPException(413, f"{filename} is too long for this chat. Try a shorter document.")
+    docchat.store.add(session_id, filename, chunks)
 
 
 @app.post("/api/sessions/{session_id}/chat")
